@@ -1,0 +1,56 @@
+.App {
+  text-align: center;
+}
+
+svg {
+  margin-top: 0;
+}
+
+.node circle {
+  fill: #69b3a2;
+  stroke: #fff;
+  stroke-width: 2px;
+  transition: all 0.3s ease;
+}
+
+.node text {
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.node.selected circle {
+  fill: #ff7f0e;
+  stroke: #ff4500;
+  stroke-width: 3px;
+  filter: drop-shadow(0 0 5px rgba(255, 127, 14, 0.7));
+}
+
+.link {
+  stroke: #999;
+  stroke-opacity: 0.6;
+  stroke-width: 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.link:hover {
+  stroke-opacity: 1;
+}
+
+.link.selected {
+  stroke: #ff0000;
+  stroke-opacity: 1;
+  stroke-width: 4px;
+  filter: drop-shadow(0 0 3px rgba(255, 0, 0, 0.5));
+}
+
+input, select, button {
+  margin: 5px;
+  padding: 5px;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
