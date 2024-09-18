@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import * as d3 from 'd3';
 import './styles/App.css';
+import { saveAs } from 'file-saver';
 
 interface Node {
   id: string;
@@ -86,6 +87,40 @@ function App() {
     setNodes(prevNodes => new Set(prevNodes).add(newNode));
   }, [nodes]);
 
+  const saveGraph = useCallback(() => {
+    const graphData = {
+      nodes: Array.from(nodes),
+      edges: Array.from(edges)
+    };
+    const blob = new Blob([JSON.stringify(graphData, null, 2)], { type: 'application/json' });
+    saveAs(blob, 'graph.json');
+  }, [nodes, edges]);
+
+  const loadGraph = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        try {
+          const graphData = JSON.parse(content);
+          setNodes(new Set(graphData.nodes));
+          setEdges(new Set(graphData.edges));
+        } catch (error) {
+          console.error('Error parsing JSON:', error);
+          alert('Invalid JSON file');
+        }
+      };
+      reader.readAsText(file);
+    }
+  }, []);
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const toggleMenu = useCallback(() => {
+    setIsMenuOpen(prev => !prev);
+  }, []);
+
   const nodesArray = useMemo(() => Array.from(nodes), [nodes]);
   const edgesArray = useMemo(() => Array.from(edges).map(edge => ({
     ...edge,
@@ -144,18 +179,49 @@ function App() {
       .on('click', handleNodeClick)
       .on('dblclick', handleNodeDoubleClick);
 
-    node.selectAll('circle')
-      .data(d => [d])
-      .join('circle')
-      .attr('r', 40)
-      .attr('class', 'node-circle');
+    // Remove existing elements
+    node.selectAll('*').remove();
 
-    node.selectAll('text')
-      .data(d => [d])
-      .join('text')
+    // Define gradients and filters
+    const defs = svg.append('defs');
+
+    // Radial gradient for nodes
+    const gradient = defs.append('radialGradient')
+      .attr('id', 'node-gradient');
+    gradient.append('stop')
+      .attr('offset', '0%')
+      .attr('stop-color', '#ffffff');
+    gradient.append('stop')
+      .attr('offset', '100%')
+      .attr('stop-color', '#e0e0e0');
+
+    // Glow filter
+    const filter = defs.append('filter')
+      .attr('id', 'glow');
+    filter.append('feGaussianBlur')
+      .attr('stdDeviation', '3')
+      .attr('result', 'coloredBlur');
+    const feMerge = filter.append('feMerge');
+    feMerge.append('feMergeNode')
+      .attr('in', 'coloredBlur');
+    feMerge.append('feMergeNode')
+      .attr('in', 'SourceGraphic');
+
+    // Add main circle
+    node.append('circle')
+      .attr('r', 40)
+      .attr('fill', 'url(#node-gradient)')
+      .attr('stroke', '#4CAF50')
+      .attr('stroke-width', 2)
+      .attr('filter', 'url(#glow)');
+
+    // Add text
+    node.append('text')
       .text(d => d.name)
       .attr('text-anchor', 'middle')
-      .attr('dy', '.35em');
+      .attr('dy', '.35em')
+      .attr('font-size', '14px')
+      .attr('fill', '#333');
 
     simulation.nodes(nodesArray);
     simulation.force<d3.ForceLink<Node, Edge>>('link')?.links(edgesArray);
@@ -190,7 +256,7 @@ function App() {
 
       const targetNode = nodesArray.find(n => 
         n.id !== d.id && 
-        Math.sqrt(Math.pow((n.x || 0) - (d.x || 0), 2) + Math.pow((n.y || 0) - (d.y || 0), 2)) < 100
+        Math.sqrt(Math.pow((n.x || 0) - (d.x || 0), 2) + Math.pow((n.y || 0) - (d.y || 0), 2)) < 110
       );
 
       if (targetNode) {
@@ -241,8 +307,83 @@ function App() {
     };
   }, [selectedNodeId, selectedEdgeId, deleteNode]);
 
+  const menuButtonStyle = {
+    padding: '8px 12px',
+    fontSize: '14px',
+    backgroundColor: '#f0f0f0',
+    color: '#333',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    transition: 'background-color 0.3s',
+    width: '100%',
+    textAlign: 'left' as const,
+  };
+
   return (
     <div className="App" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 1000 }}>
+        <button
+          onClick={toggleMenu}
+          style={{
+            padding: '10px 15px',
+            fontSize: '16px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            transition: 'background-color 0.3s'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#4CAF50'}
+        >
+          Menu
+        </button>
+        {isMenuOpen && (
+          <div style={{
+            position: 'absolute',
+            top: 'calc(100% + 10px)',
+            left: 0,
+            backgroundColor: 'white',
+            border: '1px solid #ddd',
+            borderRadius: '5px',
+            padding: '15px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+            minWidth: '150px'
+          }}>
+            <button
+              onClick={saveGraph}
+              style={menuButtonStyle}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+            >
+              Save Graph
+            </button>
+            <input
+              type="file"
+              onChange={loadGraph}
+              accept=".json"
+              style={{ display: 'none' }}
+              id="load-graph"
+            />
+            <label htmlFor="load-graph" style={{ width: '100%' }}>
+              <button
+                onClick={() => document.getElementById('load-graph')?.click()}
+                style={menuButtonStyle}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e0e0e0'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f0f0f0'}
+              >
+                Load Graph
+              </button>
+            </label>
+          </div>
+        )}
+      </div>
       <svg ref={svgRef} style={{ width: '100%', height: '100%' }}></svg>
     </div>
   );
