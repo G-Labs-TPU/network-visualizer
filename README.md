@@ -2,6 +2,8 @@
 
 A web-based network visualization tool for displaying and analyzing network structures.
 
+![alt text](preview.png)
+
 ## Features
 - Interactive graph visualization using D3.js
 - Dynamic node creation and deletion
